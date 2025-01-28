@@ -1,34 +1,49 @@
-import os
+import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-user_files = [doc for doc in os.listdir() if doc.endswith('.txt')]
-user_notes = [open(_file, encoding='utf-8').read()
-                 for _file in user_files]
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('punkt_tab')
 
 
-def vectorize(Text): return TfidfVectorizer().fit_transform(Text).toarray()
-def similarity(doc1, doc2): return cosine_similarity([doc1, doc2])
+def preprocess_text(text):
+   
+    tokens = nltk.word_tokenize(text)
+    
+    stopwords = nltk.corpus.stopwords.words('english')
+    tokens = [word for word in tokens if word.lower() not in stopwords and word.isalnum()]
+    return " ".join(tokens)
 
 
-vectors = vectorize(user_notes)
-s_vectors = list(zip(user_files, vectors))
-plagiarism_results = set()
+def check_plagiarism(text1, text2):
+    
+    text1 = preprocess_text(text1)
+    text2 = preprocess_text(text2)
+    
+
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform([text1, text2])
+    
+    
+    cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
+    
+
+    return cosine_sim[0][0] * 100
 
 
-def check_plagiarism():
-    global s_vectors
-    for student_a, text_vector_a in s_vectors:
-        new_vectors = s_vectors.copy()
-        current_index = new_vectors.index((student_a, text_vector_a))
-        del new_vectors[current_index]
-        for student_b, text_vector_b in new_vectors:
-            sim_score = similarity(text_vector_a, text_vector_b)[0][1]
-            student_pair = sorted((student_a, student_b))
-            score = (student_pair[0], student_pair[1], sim_score)
-            plagiarism_results.add(score)
-    return plagiarism_results
-
-
-for data in check_plagiarism():
-    print(data)
+if __name__ == "__main__":
+   
+    text1 = """Artificial intelligence (AI) refers to the simulation of human intelligence in machines that are programmed to think and learn like humans."""
+    text2 = """AI refers to the ability of a machine to perform tasks that would typically require human intelligence, such as learning, reasoning, and problem-solving."""
+    
+    
+    similarity = check_plagiarism(text1, text2)
+    
+    print(f"The similarity between the texts is: {similarity:.2f}%")
+    
+    if similarity > 80:
+        print("Warning: High similarity detected! Possible plagiarism.")
+    else:
+        print("The texts are sufficiently different.")
